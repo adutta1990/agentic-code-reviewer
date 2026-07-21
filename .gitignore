@@ -1,4 +1,3 @@
-HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -31,3 +30,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### OS / local ###
+.DS_Store
+*.log
+
+### Secrets — never commit ###
+.env
+*.env
+!.env.example

@@ -1,11 +1,6 @@
 spring:
   application:
-    name: AI-Agents
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/incidents
-    username: postgres
-    password: postgres
+    name: agentic-code-reviewer
 
   ai:
     openai:
@@ -13,43 +8,58 @@ spring:
       chat:
         options:
           model: gpt-4o
-      embedding:
-        options:
-          model: text-embedding-3-small
 
-    vectorstore:
-      pgvector:
-        initialize-schema: true
-        index-type: HNSW
-        distance-type: COSINE_DISTANCE
-        # Must match the embedding model above: text-embedding-3-small = 1536.
-        # Changing the embedding model means changing this and re-ingesting.
-        dimensions: 1536
-        table-name: runbook_vectors
+code-review:
+  # Cited by the reviewer for style findings; it never flags formatting a formatter fixes.
+  style-guide: "Google Java Style Guide"
+  # Linters already running in CI. The reviewer is told not to duplicate their findings.
+  existing-linters:
+    - Checkstyle
+    - SpotBugs
+  # Assertion library the test author writes against.
+  assertion-lib: "AssertJ"
+  auto-apply:
+    # Where verified fixes go: SUGGEST | COMMIT | AUTOFIX_ONLY. SUGGEST is the safe default —
+    # it posts a one-click GitHub suggestion and never mutates the branch.
+    mode: SUGGEST
+    # Master switch for pushing commits. Leave false until you trust auto-apply on your repos.
+    allow-push: false
+    commit-author-name: "code-reviewer-bot"
+    commit-author-email: "code-reviewer-bot@users.noreply.github.com"
+    commit-message-prefix: "Auto-fix: "
 
-incident-agent:
-  ingestion:
-    # Re-embedding 108 runbooks costs money and takes ~30s, so ingestion is skipped
-    # when the vector table is already populated. Set force: true to rebuild.
-    enabled: true
-    force: false
-    corpus-location: "classpath:rag-corpus/runbooks/*.md"
-  retrieval:
-    top-k: 4
-    similarity-threshold: 0.35
-  remediation:
-    # THE SAFETY GATE. When false, the agent may read diagnostics freely but every
-    # mutating action is refused and returned as a recommendation instead.
-    # Leave false until you trust it against your own infrastructure.
-    auto-remediate: false
-    # Actions the agent may take on its own even when auto-remediate is true.
-    # Anything not listed here is always escalated to a human.
-    allowed-actions:
-      - RESTART_WORKLOAD
-      - SCALE_WORKLOAD
+github:
+  api-url: "https://api.github.com"
+  # PR-write-scoped token. Blank = render suggestions but do not post them.
+  token: ${GITHUB_TOKEN:}
+  # Hard floor: findings below this confidence are dropped before they reach the PR.
+  min-confidence: 0.6
+  # Max files the PR pipeline reviews in parallel. Bounds fan-out against provider rate limits.
+  max-concurrent-reviews: 4
+
+sandbox:
+  # Guardrails for the verified-apply runner. Every one of these is a safety property.
+  timeout-seconds: 600          # hard wall-clock limit per Maven build; process tree killed on expiry
+  max-concurrent-builds: 2      # global cap so a busy repo can't fork many JVMs at once
+  queue-timeout-seconds: 60     # how long a run waits for a build permit before escalating
+  offline: true                 # -o: builds cannot reach the network
+  # local-maven-repo: /path/to/prewarmed/.m2/repository   # pre-warm this for offline builds
+  # work-root: /tmp             # temp worktrees are created here and deleted after each run
+  # java-home: /Library/Java/JavaVirtualMachines/openlogic-openjdk-17.jdk/Contents/Home
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true          # /actuator/health/liveness and /readiness for k8s probes
+      show-details: never       # don't leak internal component detail on the wire
 
 logging:
   level:
     com.ai.agents: INFO
-    # Uncomment to inspect the exact prompts/tool calls hitting the model:
+    # Uncomment to inspect the exact prompts hitting the model:
     # org.springframework.ai.chat.client.advisor: DEBUG

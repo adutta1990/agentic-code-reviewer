@@ -1,0 +1,12 @@
+target/
+.git/
+.github/
+.idea/
+.vscode/
+.claude/
+*.iml
+*.log
+.DS_Store
+.env
+*.env
+README.md
