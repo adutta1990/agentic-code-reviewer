@@ -16,16 +16,13 @@ evidence through diagnostic tools, and returns a structured verdict.
 # 1. Runbook corpus (already downloaded; re-run to refresh)
 ./scripts/download-corpus.sh
 
-# 2. pgvector
-docker compose up -d
-
-# 3. API key
+# 2. API key
 export OPENAI_API_KEY=sk-...
 
-# 4. JDK 21 is required
+# 3. JDK 21 is required
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 
-# 5. Run (first boot embeds 108 runbooks — ~30s, ~108 embedding calls, a few cents)
+# 4. Run (first boot embeds 108 runbooks — ~30s, ~108 embedding calls, a few cents)
 ./mvnw spring-boot:run
 ```
 
