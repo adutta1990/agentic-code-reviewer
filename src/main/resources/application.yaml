@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: AI-Agents
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/incidents
+    username: postgres
+    password: postgres
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        # Must match the embedding model above: text-embedding-3-small = 1536.
+        # Changing the embedding model means changing this and re-ingesting.
+        dimensions: 1536
+        table-name: runbook_vectors
+
+incident-agent:
+  ingestion:
+    # Re-embedding 108 runbooks costs money and takes ~30s, so ingestion is skipped
+    # when the vector table is already populated. Set force: true to rebuild.
+    enabled: true
+    force: false
+    corpus-location: "classpath:rag-corpus/runbooks/*.md"
+  retrieval:
+    top-k: 4
+    similarity-threshold: 0.35
+  remediation:
+    # THE SAFETY GATE. When false, the agent may read diagnostics freely but every
+    # mutating action is refused and returned as a recommendation instead.
+    # Leave false until you trust it against your own infrastructure.
+    auto-remediate: false
+    # Actions the agent may take on its own even when auto-remediate is true.
+    # Anything not listed here is always escalated to a human.
+    allowed-actions:
+      - RESTART_WORKLOAD
+      - SCALE_WORKLOAD
+
+logging:
+  level:
+    com.ai.agents: INFO
+    # Uncomment to inspect the exact prompts/tool calls hitting the model:
+    # org.springframework.ai.chat.client.advisor: DEBUG
